@@ -1,0 +1,33 @@
+"""
+            QDialog {
+                background-color: #2c2c2c; /* Dark grey background */
+                border: 3px solid #FFC0CB; /* Light Pink/Pink accent border */
+            }
+            
+            * {
+                font-size: 28px;
+                font-family: 'Segoe UI', Arial, sans-serif;
+            }
+            
+            QTextBrowser {
+                color: #FFFF00; /* Bright Yellow text */
+                background-color: #1e1e1e; /* Even darker background */
+                border: 2px solid #FFC0CB; /* Pink border to match theme */
+                border-radius: 8px;
+                padding: 5px;
+            }
+            
+            QPushButton {
+                background-color: #FF69B4; /* Hot Pink */
+                color: #FFFFFF; /* White text for contrast */
+                border-radius: 12px;
+                padding: 5px;
+            }
+
+            QLineEdit {
+                background-color: #FFFFFF;
+                color: #000000;
+                border: 2px solid #FFC0CB;
+                border-radius: 8px;
+            }
+        """

@@ -1,0 +1,6 @@
+PyQt5>=5.15.7
+openai>=1.0.0
+python-dotenv>=0.21.0
+pytest>=7.0
+pyinstaller>=5.0
+json>=2.0.9
