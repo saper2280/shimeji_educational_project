@@ -34,9 +34,14 @@ LANGUAGES = {
         "change_color": "Změnit barevní paletu",
         "change_character": "Změnit postavu",
         "language_changed": "Jazyk změněn na čeština",
+        "character_changed": "Postava změněna",
+        "character_1": "Postava 1",
+        "character_2": "Postava 2",
         "system_prompt": "jsi mily ucitel, ktery dovoluje vsechno",
         "joke_prompt": "Jsi vtipný asistent, který říká krátké vtipy.",
         "joke_request": "Řekni tatinkuvtip.",
+        "character_3": "Postava 3",
+        "delete history": "Smazat historii",
     },
     "en": {
         "chat_title": "Chat with Shimea",
@@ -49,9 +54,14 @@ LANGUAGES = {
         "change_color": "Change color palette",
         "change_character": "Change character",
         "language_changed": "Language changed to English",
+        "character_changed": "Character changed",
+        "character_1": "Character 1",
+        "character_2": "Character 2",
         "system_prompt": "you are a kind teacher who allows everything",
         "joke_prompt": "You are a funny assistant who tells short jokes.",
         "joke_request": "Tell me a dad joke.",
+        "character_3": "Character 3",
+        "delete history": "Delete history",
     },
     "ru": {
         "chat_title": "Чат с Shimea",
@@ -64,9 +74,14 @@ LANGUAGES = {
         "change_color": "Изменить палитру",
         "change_character": "Изменить персонажа",
         "language_changed": "Язык изменен на русский",
+        "character_changed": "Персонаж изменен",
+        "character_1": "Персонаж 1",
+        "character_2": "Персонаж 2",
         "system_prompt": "ты добрый учитель, который позволяет всё",
         "joke_prompt": "Ты забавный помощник, который рассказывает короткие шутки.",
         "joke_request": "Расскажи мне шутку.",
+        "character_3": "Персонаж 3",
+        "delete history": "Удалить историю"
     }
 }
 
@@ -92,8 +107,38 @@ def save_language(lang_code):
     except Exception as e:
         print(f"Chyba při ukládání jazyka: {e}")
 
+# Funkce pro načtení персонажа z JSON
+def load_character():
+    """Načti uložený персонаж z JSON nebo vrátí '1' jako výchozí"""
+    json_path = Path(__file__).resolve().parent / "current character.json"
+    try:
+        if json_path.exists():
+            with open(json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+                return data.get("character", "1")
+    except Exception as e:
+        print(f"Chyba při čtení персонажа: {e}")
+    return "1"
+
+def save_character(character):
+    """Ulož персонажa do JSON"""
+    json_path = Path(__file__).resolve().parent / "current character.json"
+    try:
+        data = {}
+        # Načti existující data
+        if json_path.exists():
+            with open(json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+        # Přidej/aktualizuj персонажа
+        data["character"] = character
+        with open(json_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        print(f"Chyba při ukládání персонажа: {e}")
+
 # Načti jazyk při spuštění
 current_language = load_language()
+current_character = load_character()
 
 def get_text(key):
     """Получи текст для текущего языка"""
@@ -131,7 +176,7 @@ class ChatDialog(QDialog):
         self.textInput = QLineEdit()
         self.btnSend = QPushButton(get_text("send"))
         self.btnClose = QPushButton(get_text("close"))
-        self.btnClear = QPushButton("Vymazat historii")  # Новая кнопка
+        self.btnClear = QPushButton(get_text("delete history"))  # Новая кнопка
 
         bottomLayout = QHBoxLayout()
         bottomLayout.addWidget(self.textInput)
@@ -239,14 +284,16 @@ class SettingsDialog(QDialog):
         btn_language = QPushButton(get_text("change_language"))
         btn_language.clicked.connect(self.change_language)
         
+        btn_character = QPushButton(get_text("change_character"))
+        btn_character.clicked.connect(self.change_character)
+        
         btn_colour = QPushButton(get_text("change_color") + " (není implementováno)")
-        btn_character = QPushButton(get_text("change_character") + " (není implementováno)")
         btn_close = QPushButton(get_text("close"))
         btn_close.clicked.connect(self.accept)
         
         layout.addWidget(btn_language)
-        layout.addWidget(btn_colour)
         layout.addWidget(btn_character)
+        layout.addWidget(btn_colour)
         layout.addWidget(btn_close)
     
     def change_language(self):
@@ -283,6 +330,46 @@ class SettingsDialog(QDialog):
         # Zobraz zprávu
         from PyQt5.QtWidgets import QMessageBox
         QMessageBox.information(self, "Info", get_text("language_changed"))
+
+    def change_character(self):
+        """Otevři dialog pro výběr персонажа"""
+        global current_character
+        
+        characters = ["1", "2", "3"]
+        char_names = {
+            "1": get_text("character_1"),
+            "2": get_text("character_2"),
+            "3": get_text("character_3")
+        }
+        
+        # Vytvoř dialog s tlačítky
+        dlg = QDialog(self)
+        dlg.setWindowTitle(get_text("change_character"))
+        dlg.setFixedSize(300, 150)
+        layout = QVBoxLayout(dlg)
+        
+        for char_id in characters:
+            btn = QPushButton(char_names.get(char_id, char_id))
+            btn.clicked.connect(lambda checked=False, cid=char_id: self.select_character(cid, dlg))
+            layout.addWidget(btn)
+        
+        dlg.exec_()
+    
+    def select_character(self, character, dialog):
+        """Nastav nový персонаж a ulož ho"""
+        global current_character
+        current_character = character
+        save_character(character)  # Ulož do JSON
+        dialog.accept()
+        
+        # Pokud je SettingsDialog otevřen z herního okna, znovu načti animace
+        parent = self.parent()
+        if parent and hasattr(parent, 'reload_character_animations'):
+            parent.reload_character_animations()
+        
+        # Zobraz zprávu
+        from PyQt5.QtWidgets import QMessageBox
+        QMessageBox.information(self, "Info", get_text("character_changed"))
 
 
 class MainMenu(QWidget):
@@ -403,10 +490,11 @@ class ShimeaWindow(QWidget):
             p = Path(folder)
             frames = []
             if not p.exists():
-                print(f"Frames folder not found: {p}")
+                print(f"DEBUG: Frames folder not found: {p}")
                 self.animations[name] = frames
                 return
             files = sorted(p.glob(pattern))
+            print(f"DEBUG: load_animation_frames('{name}') from {folder} - found {len(files)} files")
             for f in files:
                 pix = QPixmap(str(f))
                 if pix.isNull():
@@ -414,6 +502,7 @@ class ShimeaWindow(QWidget):
                 if scale_size:
                     pix = pix.scaled(scale_size[0], scale_size[1], Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 frames.append(pix)
+            print(f"DEBUG: Loaded {len(frames)} frames for '{name}'")
             self.animations[name] = frames
 
     def _next_frame(self):
@@ -459,6 +548,43 @@ class ShimeaWindow(QWidget):
             self.current_anim = None
             self.frame_index = 0
 
+    def reload_character_animations(self):
+        """Znovu načti animace pro aktuálně vybraného персонажа"""
+        global current_character
+        char_num = str(current_character) if current_character else "1"
+        print(f"DEBUG: reload_character_animations - char_num = {char_num}")
+        
+        idle_folder = f"idle0{char_num}_animation"
+        walk_folder = f"walk0{char_num}_animation"
+        talk_folder = f"talk0{char_num}_animation"
+        sleep_folder = f"sleep0{char_num}_animation"
+        
+        print(f"DEBUG: Loading animations from: {idle_folder}, {walk_folder}, {talk_folder}")
+        
+        # Smaž staré animace
+        self.animations = {}
+        self.mirrored_cache = {}
+        self.stop_animation()
+        
+        # Načti nové animace
+        base_frames_dir = os.path.join(os.path.dirname(__file__), "data", "frames")
+        self.load_animation_frames("idle", os.path.join(base_frames_dir, idle_folder), pattern="*.png", scale_size=(500,400))
+        self.load_animation_frames("walk", os.path.join(base_frames_dir, walk_folder), pattern="*.png", scale_size=(500,400))
+        self.load_animation_frames("talk", os.path.join(base_frames_dir, talk_folder), pattern="*.png", scale_size=(500,400))
+        
+        print(f"DEBUG: Loaded animations - idle: {len(self.animations.get('idle', []))}, walk: {len(self.animations.get('walk', []))}, talk: {len(self.animations.get('talk', []))}")
+        
+        sleep_path = os.path.join(base_frames_dir, sleep_folder)
+        if os.path.exists(sleep_path):
+            self.load_animation_frames("sleep", sleep_path, pattern="*.png", scale_size=(500,400))
+        
+        # Spusť idle animaci
+        if self.animations.get("idle"):
+            print(f"DEBUG: Starting idle animation with {len(self.animations['idle'])} frames")
+            self.start_animation("idle", fps=6)
+        else:
+            print("DEBUG: No idle animation frames loaded!")
+
     def __init__(self):
         super().__init__()
         # Nastavení okna: bez rámečku, průhledné pozadí, nahoře
@@ -467,9 +593,31 @@ class ShimeaWindow(QWidget):
         screen_geometry = QApplication.primaryScreen().geometry()
         self.setGeometry(screen_geometry)
 
+        # Vyber animace podle персонажа
+        char_num = current_character if current_character else "1"
+        char_num = str(char_num)  # Убедись что это строка
+        idle_folder = f"idle0{char_num}_animation"
+        walk_folder = f"walk0{char_num}_animation"
+        talk_folder = f"talk0{char_num}_animation"
+        sleep_folder = f"sleep0{char_num}_animation"
+        
+        # Сохрани параметры для переиспользования
+        self.char_num = char_num
+        self.idle_folder = idle_folder
+        self.walk_folder = walk_folder
+        self.talk_folder = talk_folder
+        self.sleep_folder = sleep_folder
+
         # Vytvoření widgetu postavy (Character dědí z QLabel)
         self.image_label = Character(self)
-        img_path = os.path.join(os.path.dirname(__file__), "data", "frames", "idle_animation", "000.png")
+        # Zkus najít první obrázek ve složce
+        frames_dir = os.path.join(os.path.dirname(__file__), "data", "frames", idle_folder)
+        img_files = sorted(Path(frames_dir).glob("*.png"))
+        if img_files:
+            img_path = str(img_files[0])
+        else:
+            img_path = os.path.join(os.path.dirname(__file__), "data", "frames", "idle01_animation", "000.png")
+        
         pixmap = QPixmap(img_path)
         if pixmap.isNull():
             print("Obrázek nebyl nalezen nebo nelze načíst!")
@@ -542,17 +690,26 @@ class ShimeaWindow(QWidget):
         self.fps = 12                    # дефолт кадров в секунду
         self.mirrored_cache = {}         # кеш зеркалированных списков
 
-        # Пример: папка src/data/frames содержит subfolders: idle, walk, sleep
+        # Pример: папка src/data/frames содержит subfolders: idle01/02, walk01/02, sleep01, talk01/02
         base_frames_dir = os.path.join(os.path.dirname(__file__), "data", "frames")
-        self.load_animation_frames("idle", os.path.join(base_frames_dir, "idle_animation"), pattern="*.png", scale_size=(500,400))
-        self.load_animation_frames("walk", os.path.join(base_frames_dir, "walk_animation"), pattern="*.png", scale_size=(500,400))
-        self.load_animation_frames("sleep", os.path.join(base_frames_dir, "sleep_animation"), pattern="*.png", scale_size=(500,400))
-        self.load_animation_frames("talk", os.path.join(base_frames_dir, "talk_animation"), pattern="*.png", scale_size=(500,400))
+        print(f"DEBUG: __init__ - char_num = {char_num}, Loading from: {idle_folder}, {walk_folder}, {talk_folder}")
+        self.load_animation_frames("idle", os.path.join(base_frames_dir, idle_folder), pattern="*.png", scale_size=(500,400))
+        self.load_animation_frames("walk", os.path.join(base_frames_dir, walk_folder), pattern="*.png", scale_size=(500,400))
+        self.load_animation_frames("talk", os.path.join(base_frames_dir, talk_folder), pattern="*.png", scale_size=(500,400))
+        
+        print(f"DEBUG: __init__ - Loaded animations - idle: {len(self.animations.get('idle', []))}, walk: {len(self.animations.get('walk', []))}, talk: {len(self.animations.get('talk', []))}")
+        
+        # Проверka наличия sleep anимace
+        sleep_path = os.path.join(base_frames_dir, sleep_folder)
+        if os.path.exists(sleep_path):
+            self.load_animation_frames("sleep", sleep_path, pattern="*.png", scale_size=(500,400))
 
         # установить стартовый кадр (если есть idle)
         if self.animations.get("idle"):
+            print(f"DEBUG: __init__ - Starting idle animation with {len(self.animations['idle'])} frames")
             self.start_animation("idle", fps=6)
         else:
+            print("DEBUG: __init__ - No idle animation frames loaded!")
             # fallback: оставляем существующий статичный pixmap
             pass
 
@@ -758,6 +915,12 @@ class ShimeaWindow(QWidget):
         y = max(0, self.image_label.y() - self.joke_label.height() - 10)
         self.joke_label.move(x, y)
         self.joke_label.show()
+
+        if self.animations.get("talk"):
+            self.start_animation("talk", fps=12)
+            # вернуться к idle через 3 секунды
+            QTimer.singleShot(14000, lambda: self.start_animation("idle", fps=6))
+
         print(f"Shimea vypráví vtip: {joke_text}")
 
     def open_chat(self):
@@ -835,6 +998,7 @@ class ShimeaWindow(QWidget):
         anim.setEndValue(QPoint(x,y))
         anim.start()
         self._return_anim = anim
+        self.stop_random_action()
 
     def open_settings_from_game(self):
         # Otevřít nastavení z herního okna

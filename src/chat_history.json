@@ -1,3 +1,28 @@
 {
-  "messages": []
+  "messages": [
+    {
+      "role": "user",
+      "content": "ahoj?"
+    },
+    {
+      "role": "assistant",
+      "content": "Ahoj! Jak vám mohu pomoci?"
+    },
+    {
+      "role": "user",
+      "content": "kdo jsi"
+    },
+    {
+      "role": "assistant",
+      "content": "Jsem virtuální asistent, který může odpovídat na tvé otázky a řešit tvé problémy. Jak ti mohu pomoci dnes?"
+    },
+    {
+      "role": "user",
+      "content": "co je to firma casio"
+    },
+    {
+      "role": "assistant",
+      "content": "Firma CASIO je japonská společnost, která je známá především díky výrobě elektronických zařízení, jako jsou kalkulačky, hodinky, fotoaparáty nebo hudební nástroje. Firma CASIO byla založena v roce 1946 a dnes je jedním z předních výrobců elektronických zařízení na celém světě. Jejich produkty jsou oblíbené pro svou kvalitu, spolehlivost a inovativní technologie."
+    }
+  ]
 }
