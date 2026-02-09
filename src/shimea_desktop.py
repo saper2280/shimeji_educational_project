@@ -5,7 +5,7 @@ from PyQt5.QtWidgets import (
     QApplication, QLabel, QWidget, QVBoxLayout, QDialog,
     QTextBrowser, QLineEdit, QPushButton, QHBoxLayout
 )
-from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QPropertyAnimation, QVariantAnimation, QEasingCurve, QPoint
+from PyQt5.QtCore import Qt, QTimer, pyqtSignal, QPropertyAnimation, QVariantAnimation, QEasingCurve, QPoint, QThread
 from PyQt5.QtGui import QPixmap, QFontDatabase, QTransform
 from pathlib import Path
 from dotenv import load_dotenv
@@ -171,13 +171,52 @@ def get_text(key):
     """Získej text pro aktuální jazyk"""
     return LANGUAGES[config.language].get(key, key)
 
-# --- Postava ---
+# --- Постава ---
 class Character(QLabel):
     doubleClicked = pyqtSignal()
 
     def mouseDoubleClickEvent(self, event):
         if event.button() == Qt.LeftButton:
             self.doubleClicked.emit()
+
+# --- Worker для асинхронных AI запросов ---
+class AIResponseWorker(QThread):
+    """Работник для обработки AI запроса в отдельном потоке"""
+    response_ready = pyqtSignal(str)  # Сигнал для отправки готового результата
+    error_occurred = pyqtSignal(str)  # Сигнал для ошибок
+
+    def __init__(self, user_message, parent=None):
+        super().__init__(parent)
+        self.user_message = user_message
+
+    def run(self):
+        """Выполняется в отдельном потоке"""
+        try:
+            if not client:
+                self.response_ready.emit("Omlouvám se, AI funkce nejsou k dispozici (chybí API klíč).")
+                return
+            
+            # Обработка специальных команд
+            if self.user_message == "do a backflip":
+                self.response_ready.emit("backflip")
+                return
+            if self.user_message == "do a flip":
+                self.response_ready.emit("flip")
+                return
+            
+            # Получить ответ от OpenAI
+            response = client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": get_text("system_prompt")},
+                    {"role": "user", "content": self.user_message}
+                ]
+            )
+            result = response.choices[0].message.content
+            self.response_ready.emit(result)
+        except Exception as e:
+            logger.error(f"Chyba AI odpovědi: {e}")
+            self.error_occurred.emit(str(e))
 
 # --- Chat dialog ---
 # Po dvojkliku na postavu se otevře okno chatu s AI
@@ -222,6 +261,9 @@ class ChatDialog(QDialog):
         # Загрузи предыдущую историю чату
         self.messages = load_chat_history()
         self.display_chat_history()
+        
+        # Инициализация worker thread переменной
+        self.ai_worker = None
 
     def display_chat_history(self):
         """Выведи всю историю чату в текстовое поле"""
@@ -243,49 +285,66 @@ class ChatDialog(QDialog):
             self.textOutput.append("<b>Vy:</b> do a flip")
             self.textInput.clear()
             self.messages.append({"role": "user", "content": "do a flip"})
-            self.get_ai_response("do a flip")
+            self.get_ai_response_async("do a flip")
             save_chat_history(self.messages)
             return
         if text == "do a backflip":
             self.textOutput.append("<b>Vy:</b> do a backflip")
             self.textInput.clear()
             self.messages.append({"role": "user", "content": "do a backflip"})
-            self.get_ai_response("do a backflip")
+            self.get_ai_response_async("do a backflip")
             save_chat_history(self.messages)
             return
         if text:
             self.textOutput.append(f"<b>Vy:</b> {text}")
             self.textInput.clear()
             self.messages.append({"role": "user", "content": text})
-            response_text = self.get_ai_response(text)
-            self.textOutput.append(f"<b>Shimea:</b> {response_text}")
-            self.messages.append({"role": "assistant", "content": response_text})
+            # Отключить кнопку отправки во время обработки
+            self.btnSend.setEnabled(False)
+            self.get_ai_response_async(text)
             save_chat_history(self.messages)
 
-    def get_ai_response(self, user_message):
-        if not client:
-            return "Omlouvám se, AI funkce nejsou k dispozici (chybí API klíč)."
+    def get_ai_response_async(self, user_message):
+        """Получить AI ответ асинхронно в отдельном потоке"""
+        # Остановить предыдущий worker если он еще работает
+        if self.ai_worker is not None and self.ai_worker.isRunning():
+            self.ai_worker.quit()
+            self.ai_worker.wait()
         
-        if user_message == "do a backflip":
+        # Создать новый worker
+        self.ai_worker = AIResponseWorker(user_message)
+        self.ai_worker.response_ready.connect(self.on_ai_response)
+        self.ai_worker.error_occurred.connect(self.on_ai_error)
+        self.ai_worker.finished.connect(self.on_worker_finished)
+        self.ai_worker.start()
+
+    def on_ai_response(self, response_text):
+        """Обработать ответ от AI"""
+        # Handle special commands
+        if response_text == "backflip":
             if self.parent() is not None and hasattr(self.parent(), "do_a_backflip"):
                 self.parent().do_a_backflip()
-            return "Provedl jsem backflip!"
-        if user_message == "do a flip":
+            response_text = "Provedl jsem backflip!"
+        elif response_text == "flip":
             if self.parent() is not None and hasattr(self.parent(), "do_a_flip"):
                 self.parent().do_a_flip()
-            return "Provedl jsem otočení!"
-        try:
-            response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": get_text("system_prompt")},
-                    {"role": "user", "content": user_message}
-                ]
-            )
-            return response.choices[0].message.content
-        except Exception as e:
-            logger.error(f"Chyba AI odpovědi: {e}")
-            return f"Chyba: {e}"
+            response_text = "Provedl jsem otočení!"
+        
+        # Показать ответ в чате
+        self.textOutput.append(f"<b>Shimea:</b> {response_text}")
+        self.messages.append({"role": "assistant", "content": response_text})
+        save_chat_history(self.messages)
+
+    def on_ai_error(self, error_text):
+        """Обработать ошибку от AI"""
+        error_message = f"Chyba: {error_text}"
+        self.textOutput.append(f"<b>Shimea:</b> {error_message}")
+        self.messages.append({"role": "assistant", "content": error_message})
+        save_chat_history(self.messages)
+
+    def on_worker_finished(self):
+        """Вызывается когда worker поток завершился"""
+        self.btnSend.setEnabled(True)
 
     def clear_history(self):
         """Vymazat historii chatu"""
@@ -298,6 +357,10 @@ class ChatDialog(QDialog):
             QMessageBox.information(self, "Info", "Historie chatu byla vymazána")
 
     def closeEvent(self, event):
+        # Остановить worker если он работает
+        if self.ai_worker is not None and self.ai_worker.isRunning():
+            self.ai_worker.quit()
+            self.ai_worker.wait()
         # Ulož historii při zavření
         save_chat_history(self.messages)
         event.accept()
