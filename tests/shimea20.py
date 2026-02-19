@@ -5,16 +5,15 @@ from openai import OpenAI
 # Загружаем переменные из .env
 load_dotenv()
 
-# Получаем значение
-api_key = "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"
+# Получаем значение из переменных окружения или .env
+api_key = os.getenv("OPENAI_API_KEY", "your_api_key_here")
 client = OpenAI(api_key=api_key)
-print("API-ключ:", api_key)
 
-# Проверим, не пустой ли он
+# Быстрая проверка формата (placeholder если не установлен)
 if api_key and api_key.startswith("sk-"):
-    print("✅ Ключ загружен успешно!")
+    print("✅ Ключ задан (похоже корректно)")
 else:
-    print("❌ Ключ не найден или записан неверно")
+    print("❌ Ключ не задан — установите OPENAI_API_KEY в src/OPENAI_API_KEY.env или в окружении")
 
 response = client.chat.completions.create(
     model="gpt-3.5-turbo",

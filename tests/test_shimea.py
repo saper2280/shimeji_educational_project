@@ -9,9 +9,11 @@ from pathlib import Path
 from openai import OpenAI
 
 # Načtení klíče z .env
+import os
 #load_dotenv()
 
-api_key = "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"
+# Use environment variable for API key (do not hard-code secrets)
+api_key = os.getenv("OPENAI_API_KEY", "your_api_key_here")
 client = OpenAI(api_key=api_key)
 
 # --- Postava ---
