@@ -1,1 +1,4 @@
 ﻿/.env
+
+# Ignore local OpenAI key file
+src/OPENAI_API_KEY.env

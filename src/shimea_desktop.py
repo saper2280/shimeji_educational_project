@@ -43,13 +43,18 @@ LANGUAGES = {
         "change_character": "Změnit postavu",
         "language_changed": "Jazyk změněn na čeština",
         "character_changed": "Postava změněna",
-        "character_1": "Postava 1",
-        "character_2": "Postava 2",
-        "system_prompt": "jsi mily ucitel, ktery dovoluje vsechno",
-        "joke_prompt": "Jsi vtipný asistent, který říká krátké vtipy.",
-        "joke_request": "Řekni tatinkuvtip.",
-        "character_3": "Postava 3",
+        "character_1": "Klara",
+        "character_2": "Sofie",
+        "character_3": "Anežka",
+        "system_prompt": "Jsi milý učitel, který muže zodpovedet na jakykoliv dotaz a pomaha pochopit informace lip",
+        "joke_prompt": "Jsi vtipný asistent, který řika zajimave vtipy nebo nahodne zajimave informace",
+        "joke_request": "Řekni vtip nebo zajimavou informaci",
         "delete history": "Smazat historii",
+        "turn on/off joke": "Zapnout/vypnout náhodné povídání",
+        "select_joke_mode": "Vyber mód vtipů",
+        "turn_on_joke": "Zapnout náhodné povídání",
+        "turn_off_joke": "Vypnout náhodné povídání",
+        "joke_mode_changed": "Mód vtipů změněn",
     },
     "en": {
         "chat_title": "Chat with Shimea",
@@ -63,13 +68,18 @@ LANGUAGES = {
         "change_character": "Change character",
         "language_changed": "Language changed to English",
         "character_changed": "Character changed",
-        "character_1": "Character 1",
-        "character_2": "Character 2",
-        "system_prompt": "you are a kind teacher who allows everything",
-        "joke_prompt": "You are a funny assistant who tells short jokes.",
-        "joke_request": "Tell me a dad joke.",
-        "character_3": "Character 3",
+        "character_1": "Clare",
+        "character_2": "Sofi",
+        "character_3": "Agnes",
+        "system_prompt": "You are a nice teacher who can answer any question and help you understand the information better.",
+        "joke_prompt": "You are a funny assistant who tells interesting jokes or randomly interesting information.",
+        "joke_request": "Tell a joke or interesting information",
         "delete history": "Delete history",
+        "turn on/off joke": "Turn on/off random talking",
+        "select_joke_mode": "Select joke mode",
+        "turn_on_joke": "Turn on random talking",
+        "turn_off_joke": "Turn off random talking",
+        "joke_mode_changed": "Joke mode changed",
     },
     "ru": {
         "chat_title": "Чат с Shimea",
@@ -83,13 +93,18 @@ LANGUAGES = {
         "change_character": "Изменить персонажа",
         "language_changed": "Язык изменен на русский",
         "character_changed": "Персонаж изменен",
-        "character_1": "Персонаж 1",
-        "character_2": "Персонаж 2",
-        "system_prompt": "ты добрый учитель, который позволяет всё",
-        "joke_prompt": "Ты забавный помощник, который рассказывает короткие шутки.",
-        "joke_request": "Расскажи мне шутку.",
-        "character_3": "Персонаж 3",
-        "delete history": "Удалить историю"
+        "character_1": "Кира",
+        "character_2": "Соня",
+        "character_3": "Анна",
+        "system_prompt": "Вы прекрасный преподаватель, способный ответить на любой вопрос и помочь лучше понять информацию.",
+        "joke_prompt": "Вы — весёлый ассистент, который рассказывает интересные анекдоты или случайно интересную информацию.",
+        "joke_request": "Расскажите анекдот или интересную информацию.",
+        "delete history": "Удалить историю",
+        "turn on/off joke": "Включить/выключить случайные разговоры",
+        "select_joke_mode": "Выберите режим шуток",
+        "turn_on_joke": "Включить случайные разговоры",
+        "turn_off_joke": "Выключить случайные разговоры",
+        "joke_mode_changed": "Режим шуток изменён",
     }
 }
 
@@ -110,6 +125,7 @@ class Config:
         self._initialized = True
         self.language = self._load_language()
         self.character = self._load_character()
+        self.joke_mode = self._load_joke_mode()
     
     @staticmethod
     def _load_language():
@@ -137,6 +153,18 @@ class Config:
             logger.error(f"Chyba při čtení personáže: {e}")
         return "1"
     
+    @staticmethod
+    def _load_joke_mode():
+        json_path = Path(__file__).resolve().parent / "current joke mode.json"
+        try:
+            if json_path.exists():
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    return data.get("joke mode", "on")
+        except Exception as e:
+            logger.error(f"Chyba při čtení modifikace vtipu: {e}")
+        return "on"
+    
     def set_language(self, lang_code):
         """Nastav a ulož jazyk"""
         self.language = lang_code
@@ -163,6 +191,18 @@ class Config:
             logger.info(f"Personáž změněn na: {character}")
         except Exception as e:
             logger.error(f"Chyba při ukládání personáže: {e}")
+    
+    def set_joke_mode(self, mode):
+        self.joke_mode = mode
+        json_path = Path(__file__).resolve().parent / "current joke mode.json"
+        try:
+            with open(json_path, "w", encoding="utf-8") as f:
+                json.dump({"joke mode": mode}, f, ensure_ascii=False, indent=2)
+            logger.info(f"Joke mode changed to: {mode}")
+        except Exception as e:
+            logger.error(f"Chyba při ukládání jazyka: {e}")
+
+
 
 # Inicijalizuj konfiguraci
 config = Config()
@@ -393,6 +433,9 @@ class SettingsDialog(QDialog):
                 self.setPalette(pal)
         
         # Tlačítko pro změnu jazyka
+        btn_joke = QPushButton(get_text("turn on/off joke"))
+        btn_joke.clicked.connect(self.change_joke_mode)
+
         btn_language = QPushButton(get_text("change_language"))
         btn_language.clicked.connect(self.change_language)
         
@@ -424,15 +467,44 @@ class SettingsDialog(QDialog):
             }}
             """
             btn_language.setStyleSheet(btn_style)
+            btn_joke.setStyleSheet(btn_style)
             btn_character.setStyleSheet(btn_style)
             btn_colour.setStyleSheet(btn_style)
             btn_close.setStyleSheet(btn_style)
         
         layout.addWidget(btn_language)
+        layout.addWidget(btn_joke)
         layout.addWidget(btn_character)
         layout.addWidget(btn_colour)
         layout.addWidget(btn_close)
+
+    def change_joke_mode(self):
+        joke_modes = ["on", "off"]
+        modes_names = {
+            "on": get_text("turn_on_joke"),
+            "off": get_text("turn_off_joke")
+        }
+
+        dlg = QDialog(self)
+        dlg.setWindowTitle(get_text("select_joke_mode"))
+        dlg.setFixedSize(300, 150)
+        layout = QVBoxLayout(dlg)
+        
+        for mode in joke_modes:
+            btn = QPushButton(modes_names.get(mode, mode))
+            btn.clicked.connect(lambda checked=False, code=mode: self.select_joke_mode(code, dlg))
+            layout.addWidget(btn)
+        
+        dlg.exec_()
     
+    def select_joke_mode(self, mode, dialog):
+        config.set_joke_mode(mode)
+        dialog.accept()
+        
+        # Zobraz zprávu
+        from PyQt5.QtWidgets import QMessageBox
+        QMessageBox.information(self, "Info", get_text("joke_mode_changed"))
+
     def change_language(self):
         """Otevři dialog pro výběr jazyka"""
         
@@ -886,8 +958,32 @@ class ShimeaWindow(QWidget):
         self.image_label.move(x, y)
 
     def do_random_action(self):
-        action = random.choice(self.actions)
-        action()
+        json_path = Path(__file__).resolve().parent / "current joke mode.json"
+        stav = config.joke_mode
+        try:
+            if json_path.exists():
+                with open(json_path, 'r', encoding='utf-8') as f:
+                    data = json.load(f)
+                    stav = data.get("joke mode", stav)
+        except Exception as e:
+            logger.error(f"Chyba při čtení modifikace vtipu v do_random_action: {e}")
+
+        if stav == "on":
+            if self.joke not in self.actions:
+                self.actions.append(self.joke)
+            action = random.choice(self.actions)
+            action()
+        elif stav == "off":
+            if self.joke in self.actions:
+                try:
+                    self.actions.remove(self.joke)
+                except ValueError:
+                    pass
+            # Ensure there's at least one action left
+            if not self.actions:
+                self.actions = [self.walk, self.sleep]
+            action = random.choice(self.actions)
+            action()
 
     def do_a_flip(self):
         """Otočení postavy s animací (otočení vpřed)"""
@@ -1025,7 +1121,7 @@ class ShimeaWindow(QWidget):
         self.joke_label.adjustSize()
         self.joke_label.resize(self.joke_label.sizeHint())
         x = self.image_label.x() + (self.image_label.width() - self.joke_label.width()) // 2
-        y = 700
+        y = 550
         self.joke_label.move(x, y)
         self.joke_label.show()
 
@@ -1096,14 +1192,13 @@ class ShimeaWindow(QWidget):
         self.image_label.move(x, y)
 
     def go_back(self):
-        margin = 20  # отступ от нижнего края
+        margin = 50 # отступ от нижнего края
         screen_geom = QApplication.desktop().availableGeometry(self)
 
         # Центр по X внутри доступной области (учитывает левый отступ экрана)
         x = screen_geom.left() + (screen_geom.width() - self.image_label.width()) // 2
         # Нижняя позиция с учётом высоты персонажа и отступа
-        y = screen_geom.bottom() - self.image_label.height() - margin
-
+        y = screen_geom.bottom() - self.image_label.height() + margin
         # Плавное перемещение с помощью анимации
         anim = QPropertyAnimation(self.image_label, b"pos", self)
         anim.setDuration(400)
