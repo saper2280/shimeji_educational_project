@@ -7,6 +7,14 @@
     {
       "role": "assistant",
       "content": "API key error recorded (redacted)."
+    },
+    {
+      "role": "user",
+      "content": "привет"
+    },
+    {
+      "role": "assistant",
+      "content": "Привет! Чем могу помочь или чем заинтересованы?"
     }
   ]
 }
