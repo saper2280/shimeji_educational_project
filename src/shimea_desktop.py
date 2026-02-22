@@ -1,5 +1,15 @@
 import sys, os, random, time
 import json
+import html
+import re
+import re
+# Попытка импортировать markdown; при отсутствии используем безопасный fallback
+try:
+    import markdown as _markdown
+    HAVE_MARKDOWN = True
+except Exception:
+    _markdown = None
+    HAVE_MARKDOWN = False
 import logging
 from PyQt5.QtWidgets import (
     QApplication, QLabel, QWidget, QVBoxLayout, QDialog,
@@ -47,7 +57,7 @@ LANGUAGES = {
         "character_2": "Sofie",
         "character_3": "Anežka",
         "system_prompt": "Jsi milý učitel, který muže zodpovedet na jakykoliv dotaz a pomaha pochopit informace lip",
-        "joke_prompt": "Jsi vtipný asistent, který řika zajimave vtipy nebo nahodne zajimave informace",
+        "joke_prompt": "Jsi vtipný asistent, který řika zajimave vtipy nebo nahodne zajimave informace, ale max 2 vety",
         "joke_request": "Řekni vtip nebo zajimavou informaci",
         "delete history": "Smazat historii",
         "turn on/off joke": "Zapnout/vypnout náhodné povídání",
@@ -72,7 +82,7 @@ LANGUAGES = {
         "character_2": "Sofi",
         "character_3": "Agnes",
         "system_prompt": "You are a nice teacher who can answer any question and help you understand the information better.",
-        "joke_prompt": "You are a funny assistant who tells interesting jokes or randomly interesting information.",
+        "joke_prompt": "You are a funny assistant who tells interesting jokes or randomly interesting information, but max 2 sentences.",
         "joke_request": "Tell a joke or interesting information",
         "delete history": "Delete history",
         "turn on/off joke": "Turn on/off random talking",
@@ -97,7 +107,7 @@ LANGUAGES = {
         "character_2": "Соня",
         "character_3": "Анна",
         "system_prompt": "Вы прекрасный преподаватель, способный ответить на любой вопрос и помочь лучше понять информацию.",
-        "joke_prompt": "Вы — весёлый ассистент, который рассказывает интересные анекдоты или случайно интересную информацию.",
+        "joke_prompt": "Вы — весёлый ассистент, который рассказывает интересные анекдоты или случайно интересную информацию, но максимум 2 предложения.",
         "joke_request": "Расскажите анекдот или интересную информацию.",
         "delete history": "Удалить историю",
         "turn on/off joke": "Включить/выключить случайные разговоры",
@@ -203,7 +213,6 @@ class Config:
             logger.error(f"Chyba při ukládání jazyka: {e}")
 
 
-
 # Inicijalizuj konfiguraci
 config = Config()
 
@@ -246,7 +255,7 @@ class AIResponseWorker(QThread):
             
             # Получить ответ от OpenAI
             response = client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-5.2",
                 messages=[
                     {"role": "system", "content": get_text("system_prompt")},
                     {"role": "user", "content": self.user_message}
@@ -305,14 +314,41 @@ class ChatDialog(QDialog):
         # Инициализация worker thread переменной
         self.ai_worker = None
 
+    def _render_message_html(self, text):
+        """Конвертирует markdown/текст в HTML для безопасного отображения в QTextBrowser.
+
+        Если пакет `markdown` доступен, используем его (fenced code, nl2br),
+        иначе делаем простой безопасный fallback: экранируем HTML и заменяем переносы.
+        """
+        if text is None:
+            return ""
+        text = str(text)
+        if HAVE_MARKDOWN and _markdown is not None:
+            try:
+                # Не допускаем сырой HTML от вводимого текста: отключить обработку встроенного HTML
+                # Для этого предварительно экранируем символы '<' и '>' в тексте, затем применяем markdown.
+                safe_text = html.escape(text)
+                html_out = _markdown.markdown(safe_text, extensions=["fenced_code", "codehilite", "nl2br", "sane_lists"], output_format="html5")
+                return html_out
+            except Exception:
+                pass
+        # Fallback — простой: экранируем и заменяем двойные переводы на параграфы
+        safe = html.escape(text).strip()
+        # Разделим по пустой строке на параграфы
+        parts = [p.strip() for p in re.split(r"\n\s*\n", safe) if p.strip()]
+        if not parts:
+            return safe.replace('\n', '<br/>')
+        return ''.join("<p>{}</p>".format(p.replace('\n', '<br/>')) for p in parts)
+
     def display_chat_history(self):
         """Выведи всю историю чату в текстовое поле"""
         self.textOutput.clear()
         for msg in self.messages:
+            rendered = self._render_message_html(msg.get('content', ''))
             if msg["role"] == "user":
-                self.textOutput.append(f"<b>Vy:</b> {msg['content']}")
+                self.textOutput.append(f"<b>Vy:</b><br/>{rendered}")
             else:
-                self.textOutput.append(f"<b>Shimea:</b> {msg['content']}")
+                self.textOutput.append(f"<b>Shimea:</b><br/>{rendered}")
 
     def send_message(self):
         text = self.textInput.text().strip()
@@ -336,7 +372,8 @@ class ChatDialog(QDialog):
             save_chat_history(self.messages)
             return
         if text:
-            self.textOutput.append(f"<b>Vy:</b> {text}")
+            rendered = self._render_message_html(text)
+            self.textOutput.append(f"<b>Vy:</b><br/>{rendered}")
             self.textInput.clear()
             self.messages.append({"role": "user", "content": text})
             # Отключить кнопку отправки во время обработки
@@ -371,14 +408,16 @@ class ChatDialog(QDialog):
             response_text = "Provedl jsem otočení!"
         
         # Показать ответ в чате
-        self.textOutput.append(f"<b>Shimea:</b> {response_text}")
+        rendered = self._render_message_html(response_text)
+        self.textOutput.append(f"<b>Shimea:</b><br/>{rendered}")
         self.messages.append({"role": "assistant", "content": response_text})
         save_chat_history(self.messages)
 
     def on_ai_error(self, error_text):
         """Обработать ошибку от AI"""
         error_message = f"Chyba: {error_text}"
-        self.textOutput.append(f"<b>Shimea:</b> {error_message}")
+        rendered = self._render_message_html(error_message)
+        self.textOutput.append(f"<b>Shimea:</b><br/>{rendered}")
         self.messages.append({"role": "assistant", "content": error_message})
         save_chat_history(self.messages)
 
