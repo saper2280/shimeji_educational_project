@@ -3,7 +3,7 @@ import json
 import html
 import re
 import re
-# Попытка импортировать markdown; при отсутствии используем безопасный fallback
+# Pokus o import markdown; pokud není dostupný, použije se bezpečný fallback
 try:
     import markdown as _markdown
     HAVE_MARKDOWN = True
@@ -20,20 +20,20 @@ from PyQt5.QtGui import QPixmap, QFontDatabase, QTransform
 from pathlib import Path
 from dotenv import load_dotenv
 
-# Настройка логирования
+# Nastavení logování
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 )
 logger = logging.getLogger(__name__)
 
-# явно загружаем .env из той же папки, где находится этот файл
+# explicitně načteme .env ze stejné složky, kde je tento soubor
 dotenv_path = Path(__file__).resolve().parent / "OPENAI_API_KEY.env"
 load_dotenv(dotenv_path=dotenv_path)
 
 api_key = os.getenv("OPENAI_API_KEY")
 if not api_key:
-    logger.warning("OPENAI_API_KEY не найден. Chat/AI funkce budou nedostupné.")
+    logger.warning("OPENAI_API_KEY nebyl nalezen. chat/AI nebude doctupny.")
     client = None
 else:
     from openai import OpenAI
@@ -42,7 +42,7 @@ else:
 # Jazykové soubory (slovník)
 LANGUAGES = {
     "cs": {
-        "chat_title": "Chat se Shimea",
+        "chat_title": "Chat s Asistentem",
         "send": "Odeslat",
         "close": "Zavřít",
         "start": "Start",
@@ -65,9 +65,26 @@ LANGUAGES = {
         "turn_on_joke": "Zapnout náhodné povídání",
         "turn_off_joke": "Vypnout náhodné povídání",
         "joke_mode_changed": "Mód vtipů změněn",
+        "user": "Vy",
+        "assistant": "Asistent",
+        "confirm": "Potvrdit",
+        "really_want_to_clear_chat_history": "Opravdu chceš vymazat historii chatu?",
+        "info": "Info",
+        "chat_history_cleared": "Historie chatu byla vymazána",
+        "backflip_done": "Provedl jsem backflip!",
+        "flip_done": "Provedl jsem flip!",
+        "default_joke": "Proč byl matematik smutný? Protože svůj život vydělil na části!",
+        "bye": "bye",
+        "do_a_flip": "do a flip",
+        "do_a_backflip": "do a backflip",
+        "no_api_key": "Omlouvám se, AI funkce nejsou k dispozici (chybí API klíč).",
+        "error": "Chyba",
+        "lang_czech": "Čeština",
+        "lang_english": "Angličtina",
+        "lang_russian": "Ruština"
     },
     "en": {
-        "chat_title": "Chat with Shimea",
+        "chat_title": "Chat with Assistant",
         "send": "Send",
         "close": "Close",
         "start": "Start",
@@ -90,9 +107,26 @@ LANGUAGES = {
         "turn_on_joke": "Turn on random talking",
         "turn_off_joke": "Turn off random talking",
         "joke_mode_changed": "Joke mode changed",
+        "user": "You",
+        "assistant": "Assistant",
+        "confirm": "Confirm",
+        "really_want_to_clear_chat_history": "Do you really want to clear chat history?",
+        "info": "Info",
+        "chat_history_cleared": "Chat history has been cleared",
+        "backflip_done": "I did a backflip!",
+        "flip_done": "I did a flip!",
+        "default_joke": "Why was the mathematician sad? Because he divided his life into parts!",
+        "bye": "bye",
+        "do_a_flip": "do a flip",
+        "do_a_backflip": "do a backflip",
+        "no_api_key": "Sorry, AI functions are not available (missing API key).",
+        "error": "Error",
+        "lang_czech": "Czech",
+        "lang_english": "English",
+        "lang_russian": "Russian"
     },
     "ru": {
-        "chat_title": "Чат с Shimea",
+        "chat_title": "Чат с Aссистентом",
         "send": "Отправить",
         "close": "Закрыть",
         "start": "Начать",
@@ -115,10 +149,27 @@ LANGUAGES = {
         "turn_on_joke": "Включить случайные разговоры",
         "turn_off_joke": "Выключить случайные разговоры",
         "joke_mode_changed": "Режим шуток изменён",
+        "user": "Вы",
+        "assistant": "Асистент",
+        "confirm": "Подтвердить",
+        "really_want_to_clear_chat_history": "Вы действительно хотите очистить историю чата?",
+        "info": "Информация",
+        "chat_history_cleared": "История чата была очищена",
+        "backflip_done": "Я сделал сальто назад!",
+        "flip_done": "Я сделал сальто!",
+        "default_joke": "Почему математик был грустным? Потому что он разделил свою жизнь на части!",
+        "bye": "пока",
+        "do_a_flip": "сделай сальто",
+        "do_a_backflip": "сделай сальто назад",
+        "no_api_key": "Извините, функции ИИ недоступны (отсутствует ключ API).",
+        "error": "Ошибка",
+        "lang_czech": "Чешский",
+        "lang_english": "Английский",
+        "lang_russian": "Русский"
     }
 }
 
-# --- Конфигурационный класс ---
+# --- Konfigurační třída ---
 class Config:
     """Správa stavu aplikace (singleton pattern)"""
     _instance = None
@@ -198,9 +249,9 @@ class Config:
             data["character"] = character
             with open(json_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
-            logger.info(f"Personáž změněn na: {character}")
+            logger.info(f"Postava změněna na: {character}")
         except Exception as e:
-            logger.error(f"Chyba při ukládání personáže: {e}")
+            logger.error(f"Chyba při ukládání postavy: {e}")
     
     def set_joke_mode(self, mode):
         self.joke_mode = mode
@@ -208,19 +259,19 @@ class Config:
         try:
             with open(json_path, "w", encoding="utf-8") as f:
                 json.dump({"joke mode": mode}, f, ensure_ascii=False, indent=2)
-            logger.info(f"Joke mode changed to: {mode}")
+            logger.info(f"Režim vtipů změněn na: {mode}")
         except Exception as e:
             logger.error(f"Chyba při ukládání jazyka: {e}")
 
 
-# Inicijalizuj konfiguraci
+# Inicializuj konfiguraci
 config = Config()
 
 def get_text(key):
     """Získej text pro aktuální jazyk"""
     return LANGUAGES[config.language].get(key, key)
 
-# --- Постава ---
+# --- Postava ---
 class Character(QLabel):
     doubleClicked = pyqtSignal()
 
@@ -228,24 +279,25 @@ class Character(QLabel):
         if event.button() == Qt.LeftButton:
             self.doubleClicked.emit()
 
-# --- Worker для асинхронных AI запросов ---
+# --- Worker pro asynchronní AI dotazy ---
 class AIResponseWorker(QThread):
-    """Работник для обработки AI запроса в отдельном потоке"""
-    response_ready = pyqtSignal(str)  # Сигнал для отправки готового результата
-    error_occurred = pyqtSignal(str)  # Сигнал для ошибок
+    """Worker pro zpracování AI dotazu v samostatném vlákně."""
+    response_ready = pyqtSignal(str)  # Signál pro odeslání hotové odpovědi
+    error_occurred = pyqtSignal(str)  # Signál pro chyby
 
-    def __init__(self, user_message, parent=None):
+    def __init__(self, user_message, messages=None, parent=None):
         super().__init__(parent)
         self.user_message = user_message
+        self.messages = messages if messages else []  # Historie zpráv pro kontext
 
     def run(self):
-        """Выполняется в отдельном потоке"""
+        """Provádí se v samostatném vlákně."""
         try:
             if not client:
-                self.response_ready.emit("Omlouvám se, AI funkce nejsou k dispozici (chybí API klíč).")
+                self.response_ready.emit(get_text("no_api_key"))
                 return
             
-            # Обработка специальных команд
+            # Zpracování speciálních příkazů
             if self.user_message == "do a backflip":
                 self.response_ready.emit("backflip")
                 return
@@ -253,18 +305,24 @@ class AIResponseWorker(QThread):
                 self.response_ready.emit("flip")
                 return
             
-            # Получить ответ от OpenAI
+            # Sestav seznam zpráv včetně historie
+            messages_to_send = [
+                {"role": "system", "content": get_text("system_prompt")}
+            ]
+            
+            # Přidej celou historii zpráv kvůli kontextu
+            for msg in self.messages:
+                messages_to_send.append(msg)
+            
+            # Získej odpověď od OpenAI
             response = client.chat.completions.create(
-                model="gpt-5.2",
-                messages=[
-                    {"role": "system", "content": get_text("system_prompt")},
-                    {"role": "user", "content": self.user_message}
-                ]
+                model="gpt-4o",
+                messages=messages_to_send
             )
             result = response.choices[0].message.content
             self.response_ready.emit(result)
         except Exception as e:
-            logger.error(f"Chyba AI odpovědi: {e}")
+            logger.error(f"Chyba při AI odpovědi: {e}")
             self.error_occurred.emit(str(e))
 
 # --- Chat dialog ---
@@ -277,13 +335,31 @@ class ChatDialog(QDialog):
         self.setWindowFlags(Qt.Dialog)
         self.setAttribute(Qt.WA_DeleteOnClose)
 
+        # Použij vlastní barevné schéma ladící s pozadím hlavního menu
+        # (přechod od světle béžové přes zelenou až po hnědou)
+        dialog_style = """
+        QDialog {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #E6D5B8,
+                stop:0.5 #9EA67D,
+                stop:1 #7B5E3C
+            );
+            border: 2px solid #5C493A;
+            border-radius: 12px;
+        }
+        """
+        self.setStyleSheet(dialog_style)
+
         self.textOutput = QTextBrowser()
         textOut_stylte = """
         QTextBrowser {
-            border: 1px solid #ccc;
-            border-color: rgba(0, 0, 0, 0.2);
+            background-color: rgba(255,255,255,0.8);
+            border: 1px solid #5C493A;
             border-radius: 8px;
             padding: 10px;
+            color: #333;
+            font-family: 'BoldPixels', sans-serif;
+            font-size: 20px;
         }
         """
         self.textOutput.setStyleSheet(textOut_stylte)
@@ -291,7 +367,7 @@ class ChatDialog(QDialog):
         self.textInput = QLineEdit()
         self.btnSend = QPushButton(get_text("send"))
         self.btnClose = QPushButton(get_text("close"))
-        self.btnClear = QPushButton(get_text("delete history"))  # Новая кнопка
+        self.btnClear = QPushButton(get_text("delete history"))  # Nové tlačítko
 
         bottomLayout = QHBoxLayout()
         bottomLayout.addWidget(self.textInput)
@@ -303,69 +379,88 @@ class ChatDialog(QDialog):
         layout.addWidget(self.textOutput)
         layout.addLayout(bottomLayout)
 
+        # Styl tlačítek a vstupu tak, aby ladily s dialogem
+        btn_style = """
+        QPushButton {
+            background-color: #5C493A;
+            color: white;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-family: 'BoldPixels', sans-serif;
+            font-size: 16px;
+        }
+        QPushButton:hover {
+            background-color: #7B5E3C;
+        }
+        """
+        self.btnSend.setStyleSheet(btn_style)
+        self.btnClose.setStyleSheet(btn_style)
+        self.btnClear.setStyleSheet(btn_style)
+        self.textInput.setStyleSheet("background-color: rgba(255,255,255,0.9); border:1px solid #5C493A; border-radius:6px; padding:4px;")
+
         self.btnClose.clicked.connect(self.close)
         self.btnSend.clicked.connect(self.send_message)
         self.btnClear.clicked.connect(self.clear_history)
 
-        # Загрузи предыдущую историю чату
+        # Načti předchozí historii chatu
         self.messages = load_chat_history()
         self.display_chat_history()
         
-        # Инициализация worker thread переменной
+        # Inicializace proměnné pro worker vlákno
         self.ai_worker = None
 
     def _render_message_html(self, text):
-        """Конвертирует markdown/текст в HTML для безопасного отображения в QTextBrowser.
+        """Převede markdown/text do HTML pro bezpečné zobrazení v QTextBrowser.
 
-        Если пакет `markdown` доступен, используем его (fenced code, nl2br),
-        иначе делаем простой безопасный fallback: экранируем HTML и заменяем переносы.
+        Pokud je balíček `markdown` dostupný, použije se (fenced code, nl2br),
+        jinak se použije jednoduchý bezpečný fallback: escapování HTML a nahrazení zalomení.
         """
         if text is None:
             return ""
         text = str(text)
         if HAVE_MARKDOWN and _markdown is not None:
             try:
-                # Не допускаем сырой HTML от вводимого текста: отключить обработку встроенного HTML
-                # Для этого предварительно экранируем символы '<' и '>' в тексте, затем применяем markdown.
+                # Nepovolíme syrový HTML ze vstupu: nejdřív text escapujeme,
+                # a až potom na něj aplikujeme markdown.
                 safe_text = html.escape(text)
                 html_out = _markdown.markdown(safe_text, extensions=["fenced_code", "codehilite", "nl2br", "sane_lists"], output_format="html5")
                 return html_out
             except Exception:
                 pass
-        # Fallback — простой: экранируем и заменяем двойные переводы на параграфы
+            # Fallback: escapování a rozdělení dvojitých odřádkování na odstavce
         safe = html.escape(text).strip()
-        # Разделим по пустой строке на параграфы
+            # Rozdělení podle prázdných řádků na odstavce
         parts = [p.strip() for p in re.split(r"\n\s*\n", safe) if p.strip()]
         if not parts:
             return safe.replace('\n', '<br/>')
         return ''.join("<p>{}</p>".format(p.replace('\n', '<br/>')) for p in parts)
 
     def display_chat_history(self):
-        """Выведи всю историю чату в текстовое поле"""
+        """Vypíše celou historii chatu do textového pole."""
         self.textOutput.clear()
         for msg in self.messages:
             rendered = self._render_message_html(msg.get('content', ''))
             if msg["role"] == "user":
-                self.textOutput.append(f"<b>Vy:</b><br/>{rendered}")
+                self.textOutput.append(f"<b style='color: #177245;'>{get_text('user')}:</b><br/>{rendered}")   
             else:
-                self.textOutput.append(f"<b>Shimea:</b><br/>{rendered}")
+                self.textOutput.append(f"<b style='color: #987654;'>{get_text('assistant')}:</b><br/>{rendered}")
 
     def send_message(self):
         text = self.textInput.text().strip()
-        if text == "bye":
-            self.textOutput.append("<b>Vy:</b> bye")
+        if text == get_text("bye"):
+            self.textOutput.append(f"<b style='color: #177245;'>{get_text('user')}:</b> {get_text('bye')}")
             self.textInput.clear()
             self.close()
             return
-        if text == "do a flip":
-            self.textOutput.append("<b>Vy:</b> do a flip")
+        if text == get_text("do_a_flip"):
+            self.textOutput.append(f"<b style='color: #177245;'>{get_text('user')}:</b> {get_text('do_a_flip')}")
             self.textInput.clear()
             self.messages.append({"role": "user", "content": "do a flip"})
             self.get_ai_response_async("do a flip")
             save_chat_history(self.messages)
             return
-        if text == "do a backflip":
-            self.textOutput.append("<b>Vy:</b> do a backflip")
+        if text == get_text("do_a_backflip"):
+            self.textOutput.append(f"<b style='color: #177245;'>{get_text('user')}:</b> {get_text('do_a_backflip')}")
             self.textInput.clear()
             self.messages.append({"role": "user", "content": "do a backflip"})
             self.get_ai_response_async("do a backflip")
@@ -373,70 +468,71 @@ class ChatDialog(QDialog):
             return
         if text:
             rendered = self._render_message_html(text)
-            self.textOutput.append(f"<b>Vy:</b><br/>{rendered}")
+            # #177245 je barva textu uživatele
+            self.textOutput.append(f"<b style='color: #177245;'>{get_text('user')}:</b><br/>{rendered}")
             self.textInput.clear()
             self.messages.append({"role": "user", "content": text})
-            # Отключить кнопку отправки во время обработки
+            # Během zpracování vypni tlačítko odeslání
             self.btnSend.setEnabled(False)
             self.get_ai_response_async(text)
             save_chat_history(self.messages)
 
     def get_ai_response_async(self, user_message):
-        """Получить AI ответ асинхронно в отдельном потоке"""
-        # Остановить предыдущий worker если он еще работает
+        """Získá AI odpověď asynchronně v samostatném vlákně."""
+        # Zastav předchozí worker, pokud stále běží
         if self.ai_worker is not None and self.ai_worker.isRunning():
             self.ai_worker.quit()
             self.ai_worker.wait()
         
-        # Создать новый worker
-        self.ai_worker = AIResponseWorker(user_message)
+        # Vytvoř nový worker s kompletní historií zpráv
+        self.ai_worker = AIResponseWorker(user_message, messages=self.messages.copy())
         self.ai_worker.response_ready.connect(self.on_ai_response)
         self.ai_worker.error_occurred.connect(self.on_ai_error)
         self.ai_worker.finished.connect(self.on_worker_finished)
         self.ai_worker.start()
 
     def on_ai_response(self, response_text):
-        """Обработать ответ от AI"""
-        # Handle special commands
+        """Zpracuje odpověď od AI."""
+        # Obsluha speciálních příkazů
         if response_text == "backflip":
             if self.parent() is not None and hasattr(self.parent(), "do_a_backflip"):
                 self.parent().do_a_backflip()
-            response_text = "Provedl jsem backflip!"
+            response_text = get_text("backflip_done")
         elif response_text == "flip":
             if self.parent() is not None and hasattr(self.parent(), "do_a_flip"):
                 self.parent().do_a_flip()
-            response_text = "Provedl jsem otočení!"
+            response_text = get_text("flip_done")
         
-        # Показать ответ в чате
+        # Zobraz odpověď v chatu
         rendered = self._render_message_html(response_text)
-        self.textOutput.append(f"<b>Shimea:</b><br/>{rendered}")
+        self.textOutput.append(f"<b style='color: #987654;'>{get_text('assistant')}:</b><br/>{rendered}")
         self.messages.append({"role": "assistant", "content": response_text})
         save_chat_history(self.messages)
 
     def on_ai_error(self, error_text):
-        """Обработать ошибку от AI"""
+        """Zpracuje chybu od AI."""
         error_message = f"Chyba: {error_text}"
         rendered = self._render_message_html(error_message)
-        self.textOutput.append(f"<b>Shimea:</b><br/>{rendered}")
+        self.textOutput.append(f"<b style='color: #987654;'>{get_text('assistant')}:</b><br/>{rendered}")
         self.messages.append({"role": "assistant", "content": error_message})
         save_chat_history(self.messages)
 
     def on_worker_finished(self):
-        """Вызывается когда worker поток завершился"""
+        """Volá se po dokončení worker vlákna."""
         self.btnSend.setEnabled(True)
 
     def clear_history(self):
         """Vymazat historii chatu"""
         from PyQt5.QtWidgets import QMessageBox
-        reply = QMessageBox.question(self, "Potvrdit", "Opravdu chceš vymazat historii chatu?")
+        reply = QMessageBox.question(self, get_text("confirm"), get_text("really_want_to_clear_chat_history"))
         if reply == QMessageBox.Yes:
             self.messages = []
             self.textOutput.clear()
             save_chat_history([])
-            QMessageBox.information(self, "Info", "Historie chatu byla vymazána")
+            QMessageBox.information(self, get_text("info"), get_text("chat_history_cleared"))
 
     def closeEvent(self, event):
-        # Остановить worker если он работает
+        # Zastav worker, pokud běží
         if self.ai_worker is not None and self.ai_worker.isRunning():
             self.ai_worker.quit()
             self.ai_worker.wait()
@@ -455,9 +551,9 @@ class SettingsDialog(QDialog):
 
         stngs_rel = os.path.join(os.path.dirname(__file__), "data", "settings_background.png")
         stngs_path = Path(stngs_rel).resolve()
-        logger.debug(f"Hledám pozadí: {stngs_path}")
+        logger.debug(f"Hledaní pozadi: {stngs_path}")
         if not stngs_path.exists():
-            logger.warning(f"Pozadí nenalezeno: {stngs_path}")
+            logger.warning(f"Pozadi nebylo nalezeno: {stngs_path}")
         else:
             # Načtení přes QPixmap z file systému
             pix = QPixmap(str(stngs_path))
@@ -525,12 +621,37 @@ class SettingsDialog(QDialog):
         }
 
         dlg = QDialog(self)
+        dlg_style = """
+        QDialog {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #E6D5B8,
+                stop:0.5 #9EA67D,
+                stop:1 #7B5E3C
+            );
+            border: 2px solid #5C493A;
+            border-radius: 12px;
+        }
+        """
+        dlg.setStyleSheet(dlg_style)
         dlg.setWindowTitle(get_text("select_joke_mode"))
         dlg.setFixedSize(300, 150)
         layout = QVBoxLayout(dlg)
+
+        btn_style = """
+        QPushButton {
+            background-color: #5C493A;
+            color: white;
+            border-radius: 6px;
+            padding: 6px 10px;
+        }
+        QPushButton:hover {
+            background-color: #7B5E3C;
+        }
+        """
         
         for mode in joke_modes:
             btn = QPushButton(modes_names.get(mode, mode))
+            btn.setStyleSheet(btn_style)
             btn.clicked.connect(lambda checked=False, code=mode: self.select_joke_mode(code, dlg))
             layout.addWidget(btn)
         
@@ -542,26 +663,52 @@ class SettingsDialog(QDialog):
         
         # Zobraz zprávu
         from PyQt5.QtWidgets import QMessageBox
-        QMessageBox.information(self, "Info", get_text("joke_mode_changed"))
+        QMessageBox.information(self, get_text("info"), get_text("joke_mode_changed"))
 
     def change_language(self):
         """Otevři dialog pro výběr jazyka"""
         
         languages_list = list(LANGUAGES.keys())
         lang_names = {
-            "cs": "Čeština",
-            "en": "English",
-            "ru": "Русский"
+            "cs": get_text("lang_czech"),
+            "en": get_text("lang_english"),
+            "ru": get_text("lang_russian")
         }
         
         # Vytvoř dialog s tlačítky
+        dlg_style = """
+        QDialog {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #E6D5B8,
+                stop:0.5 #9EA67D,
+                stop:1 #7B5E3C
+            );
+            border: 2px solid #5C493A;
+            border-radius: 12px;
+        }
+        """
+
         dlg = QDialog(self)
-        dlg.setWindowTitle("Vybrat jazyk")
+        dlg.setStyleSheet(dlg_style)
+        dlg.setWindowTitle(get_text("change_language"))
         dlg.setFixedSize(300, 150)
         layout = QVBoxLayout(dlg)
+
+        btn_style = """
+        QPushButton {
+            background-color: #5C493A;
+            color: white;
+            border-radius: 6px;
+            padding: 6px 10px;
+        }
+        QPushButton:hover {
+            background-color: #7B5E3C;
+        }
+        """
         
         for lang_code in languages_list:
             btn = QPushButton(lang_names.get(lang_code, lang_code))
+            btn.setStyleSheet(btn_style)
             btn.clicked.connect(lambda checked=False, code=lang_code: self.select_language(code, dlg))
             layout.addWidget(btn)
         
@@ -574,7 +721,7 @@ class SettingsDialog(QDialog):
         
         # Zobraz zprávu
         from PyQt5.QtWidgets import QMessageBox
-        QMessageBox.information(self, "Info", get_text("language_changed"))
+        QMessageBox.information(self, get_text("info"), get_text("language_changed"))
 
     def change_character(self):
         """Otevři dialog pro výběr personáže"""
@@ -587,13 +734,38 @@ class SettingsDialog(QDialog):
         }
         
         # Vytvoř dialog s tlačítky
+        dlg_style = """
+        QDialog {
+            background: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+                stop:0 #E6D5B8,
+                stop:0.5 #9EA67D,
+                stop:1 #7B5E3C
+            );
+            border: 2px solid #5C493A;
+            border-radius: 12px;
+        }
+        """
         dlg = QDialog(self)
+        dlg.setStyleSheet(dlg_style)
         dlg.setWindowTitle(get_text("change_character"))
         dlg.setFixedSize(300, 150)
         layout = QVBoxLayout(dlg)
+
+        btn_style = """
+        QPushButton {
+            background-color: #5C493A;
+            color: white;
+            border-radius: 6px;
+            padding: 6px 10px;
+        }
+        QPushButton:hover {
+            background-color: #7B5E3C;
+        }
+        """
         
         for char_id in characters:
             btn = QPushButton(char_names.get(char_id, char_id))
+            btn.setStyleSheet(btn_style)
             btn.clicked.connect(lambda checked=False, cid=char_id: self.select_character(cid, dlg))
             layout.addWidget(btn)
         
@@ -611,7 +783,7 @@ class SettingsDialog(QDialog):
         
         # Zobraz zprávu
         from PyQt5.QtWidgets import QMessageBox
-        QMessageBox.information(self, "Info", get_text("character_changed"))
+        QMessageBox.information(self, get_text("info"), get_text("character_changed"))
 
 
 class MainMenu(QWidget):
@@ -624,9 +796,9 @@ class MainMenu(QWidget):
         # Cesta k souboru pozadí
         bg_rel = os.path.join(os.path.dirname(__file__), "data", "main_background.png")
         bg_path = Path(bg_rel).resolve()
-        logger.debug(f"Hledám pozadí: {bg_path}")
+        logger.debug(f"Hledání pozadí: {bg_path}")
         if not bg_path.exists():
-            logger.warning(f"Pozadí nenalezeno: {bg_path}")
+            logger.warning(f"Pozadí nebylo nalezeno: {bg_path}")
         else:
             # Načtení přes QPixmap z file systému
             pix = QPixmap(str(bg_path))
@@ -732,20 +904,20 @@ class ShimeaWindow(QWidget):
             p = Path(folder)
             frames = []
             if not p.exists():
-                logger.warning(f"Složka s animacemi nenalezena: {p}")
+                logger.warning(f"Slozka se snimky nebyla nalezena: {p}")
                 self.animations[name] = frames
                 return
             files = sorted(p.glob(pattern))
-            logger.debug(f"Načítám animaci '{name}' ze {folder} - nalezeno {len(files)} souborů")
+            logger.debug(f"Importuju animace '{name}' z {folder} - nalezeno {len(files)} souboru")
             for f in files:
                 pix = QPixmap(str(f))
                 if pix.isNull():
-                    logger.warning(f"Nelze načíst obrázek: {f}")
+                    logger.warning(f"Nelze importovat soubor: {f}")
                     continue
                 if scale_size:
                     pix = pix.scaled(scale_size[0], scale_size[1], Qt.KeepAspectRatio, Qt.SmoothTransformation)
                 frames.append(pix)
-            logger.info(f"Načteno {len(frames)} snímků pro '{name}'")
+            logger.info(f"Nainstalovano {len(frames)} snimku pro '{name}'")
             self.animations[name] = frames
 
     def _next_frame(self):
@@ -818,7 +990,7 @@ class ShimeaWindow(QWidget):
         
         # Spusť idle animaci
         if self.animations.get("idle"):
-            logger.info(f"Spuštění idle animace s {len(self.animations['idle'])} snímky")
+            logger.info(f"Spouštím idle animaci s {len(self.animations['idle'])} snímky")
             self.start_animation("idle", fps=6)
         else:
             logger.warning("Žádné idle animace nebyly načteny!")
@@ -868,12 +1040,12 @@ class ShimeaWindow(QWidget):
         layout = QVBoxLayout(self)
         layout.addStretch()
 
-        # создаём поля вместо локальных переменных
+        # Vytvoříme atributy místo lokálních proměnných
         self.btn_back = QPushButton("<-", self)
         self.btn_settings = QPushButton("#", self)
         self.btn_exit = QPushButton("X", self)
 
-        # небольшой контейнер с вертикальным layout'ом, чтобы управлять группой кнопок
+        # Malý kontejner s vertikálním layoutem pro správu skupiny tlačítek
         btn_container = QWidget(self)
         vbox = QVBoxLayout(btn_container)
         vbox.setContentsMargins(0, 0, 0, 0)
@@ -883,27 +1055,24 @@ class ShimeaWindow(QWidget):
         vbox.addWidget(self.btn_exit)
         btn_container.setFixedSize(60, 170)
 
-        # разместить контейнер в правом верхнем углу (с отступами)
+        # Umístění kontejneru do pravého horního rohu (s odsazením)
         btn_container.move(self.width() - btn_container.width() - 10, 455)
 
         # Fallback styl (bez obrázků) — jednoduché text/ikonky
         btn_style = """
         QPushButton {
-            border: none;
-            background-color: rgba(0, 0, 0, 0.7);
-            font-family: 'BoldPixels', sans-serif;
+            background-color: #5C493A;
             color: white;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-family: 'BoldPixels', sans-serif;
             font-size: 24px;
-            border-radius: 8px;
-            padding: 4px;
         }
         QPushButton:hover {
-            background-color: rgba(150, 150, 150, 0.7);
-        }
-        QPushButton:pressed {
-            background-color: rgba(50, 50, 50, 0.8);
+            background-color: #7B5E3C;
         }
         """
+
         self.btn_back.setStyleSheet(btn_style)
         self.btn_settings.setStyleSheet(btn_style)
         self.btn_exit.setStyleSheet(btn_style)
@@ -925,26 +1094,26 @@ class ShimeaWindow(QWidget):
         self.frame_index = 0
         self.frame_timer = QTimer(self)
         self.frame_timer.timeout.connect(self._next_frame)
-        self.fps = 12                    # dефолт кадров в секунду
-        self.mirrored_cache = {}         # кеш зеркалированных списков
+        self.fps = 12                    # výchozí počet snímků za sekundu
+        self.mirrored_cache = {}         # cache zrcadlených snímků
 
-        # Pример: папка src/data/frames содержит subfolders: idle01/02, walk01/02, sleep01, talk01/02
+        # Příklad: složka src/data/frames obsahuje podsložky idle, walk, sleep a talk
         base_frames_dir = os.path.join(os.path.dirname(__file__), "data", "frames")
-        logger.debug(f"Inicijalizace ShimeaWindow - char_num = {char_num}")
+        logger.debug(f"Inicializace ShimeaWindow - char_num = {char_num}")
         self.load_animation_frames("idle", os.path.join(base_frames_dir, idle_folder), pattern="*.png", scale_size=(500,400))
         self.load_animation_frames("walk", os.path.join(base_frames_dir, walk_folder), pattern="*.png", scale_size=(500,400))
         self.load_animation_frames("talk", os.path.join(base_frames_dir, talk_folder), pattern="*.png", scale_size=(500,400))
         
         logger.debug(f"Načtené animace - idle: {len(self.animations.get('idle', []))}, walk: {len(self.animations.get('walk', []))}, talk: {len(self.animations.get('talk', []))}")
         
-        # Проверka наличия sleep anимace
+        # Kontrola dostupnosti sleep animace
         sleep_path = os.path.join(base_frames_dir, sleep_folder)
         if os.path.exists(sleep_path):
             self.load_animation_frames("sleep", sleep_path, pattern="*.png", scale_size=(500,400))
 
-        # установить стартовый кадр (если есть idle)
+        # Nastav úvodní snímek (pokud je idle)
         if self.animations.get("idle"):
-            logger.info(f"Spuštění idle animace se {len(self.animations['idle'])} snímky")
+            logger.info(f"Spouštím idle animaci s {len(self.animations['idle'])} snímky")
             self.start_animation("idle", fps=6)
         else:
             logger.warning("Žádné idle animace nebyly načteny!")
@@ -1018,7 +1187,7 @@ class ShimeaWindow(QWidget):
                     self.actions.remove(self.joke)
                 except ValueError:
                     pass
-            # Ensure there's at least one action left
+            # Zajisti, že zůstane alespoň jedna akce
             if not self.actions:
                 self.actions = [self.walk, self.sleep]
             action = random.choice(self.actions)
@@ -1036,7 +1205,7 @@ class ShimeaWindow(QWidget):
         """Běžná funkce pro rotační animace"""
         base = self.image_label.pixmap()
         if base is None:
-            logger.warning("Žádný obrázek k otočení")
+            logger.warning("Neni dostupny snimek pro otaceni")
             return
         base = base.copy()
 
@@ -1084,27 +1253,21 @@ class ShimeaWindow(QWidget):
             self.start_animation("idle", fps=6)
 
     def walk(self):
-        # Случайное число по оси Y: отрицательное → двигаться влево, положительное → вправо
-        # избегаем 0; используем скорость 1 или 2 (можно настроить)
         y = 0
         while y == 0:
             y = random.choice([-2, -1, 1, 2])
 
-        speed = 2  # базовая скорость по X (можно поставить 1 или 3)
+        speed = 2  
         self.dx = -speed if y < 0 else speed
         self.dy = 0
 
-        # Обновляем направление взгляда для зеркалирования кадров
         self.facing_left = (self.dx < 0)
 
-        # Скрыть пузырёк, если он есть
         if hasattr(self, "joke_label") and self.joke_label is not None:
             self.joke_label.hide()
 
-        # Запустить анимацию ходьбы (если кадры загружены)
         if self.animations.get("walk"):
             self.start_animation("walk", fps=12)
-            # вернуться к idle через 3 секунды
             QTimer.singleShot(15000, lambda: self.start_animation("idle", fps=6))
 
         logger.debug(f"Shimea jde! y={y}, dx={self.dx}, facing_left={self.facing_left}")
@@ -1119,7 +1282,7 @@ class ShimeaWindow(QWidget):
     def joke_generate(self):
         if not client:
             logger.warning("OpenAI klíč není dostupný, vrácení výchozího vtipu")
-            return "Proč byl matematik smutný? Protože svůj život vydělil na části!"
+            return get_text("default_joke")
         
         try:
             response = client.chat.completions.create(
@@ -1132,7 +1295,7 @@ class ShimeaWindow(QWidget):
             return response.choices[0].message.content
         except Exception as e:
             logger.error(f"Chyba při generování vtipu: {e}")
-            return "Nemůžu si vzpomenout na vtip, omlouvám se!"
+            return get_text("default_joke")
 
     def joke(self):
         if hasattr(self, "joke_label") and self.joke_label is not None:
@@ -1147,10 +1310,11 @@ class ShimeaWindow(QWidget):
         self.joke_label = QLabel(joke_text, self)
         style = """
         QLabel {
-            background-color: rgba(0, 0, 0, 0.7);
-            color: white;
+            background-color: rgba(255,255,255,0.8);
+            border: 1px solid #5C493A;
             border-radius: 8px;
             padding: 10px;
+            color: #333;
             font-family: 'BoldPixels', sans-serif;
             font-size: 24px;
         }
@@ -1166,7 +1330,7 @@ class ShimeaWindow(QWidget):
 
         if self.animations.get("talk"):
             self.start_animation("talk", fps=12)
-            # vернуться к idle через 3 секунды
+            # Návrat na idle po krátké prodlevě
             QTimer.singleShot(14000, lambda: self.start_animation("idle", fps=6))
 
         logger.info(f"Shimea vypráví vtip: {joke_text}")
@@ -1231,18 +1395,21 @@ class ShimeaWindow(QWidget):
         self.image_label.move(x, y)
 
     def go_back(self):
-        margin = 50 # отступ от нижнего края
+        """Přesune postavu do středu spodní části obrazovky."""
+        # Pokud je postava příliš vysoko, zmenši odsazení
+        margin = 0  # vzdálenost od spodního okraje (0 = úplně dole)
         screen_geom = QApplication.desktop().availableGeometry(self)
 
-        # Центр по X внутри доступной области (учитывает левый отступ экрана)
+        # Střed v ose X
         x = screen_geom.left() + (screen_geom.width() - self.image_label.width()) // 2
-        # Нижняя позиция с учётом высоты персонажа и отступа
-        y = screen_geom.bottom() - self.image_label.height() + margin
-        # Плавное перемещение с помощью анимации
+        # Spodní pozice: výška postavy + margin od spodního okraje
+        y = screen_geom.bottom() - self.image_label.height() - margin
+
+        # Animace přesunu
         anim = QPropertyAnimation(self.image_label, b"pos", self)
         anim.setDuration(400)
         anim.setStartValue(self.image_label.pos())
-        anim.setEndValue(QPoint(x,y))
+        anim.setEndValue(QPoint(x, y))
         anim.start()
         self._return_anim = anim
         self.stop_random_action()
@@ -1283,7 +1450,7 @@ if __name__ == "__main__":
         logger.warning(f"Vlastní font nenalezen: {font_path}")
 
     # Zobrazit hlavní menu před spuštěním postavy
-    logger.info("Spouštění Shimea aplikace")
+    logger.info("Spouštím aplikaci Shimea")
     menu = MainMenu()
     menu.show()
 
